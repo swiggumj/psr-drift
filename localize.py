@@ -303,6 +303,7 @@ def usage():
 if __name__ == "__main__":
 
     nsub=None
+    mode = None
     make_plot = True
     args = argv[1:]
 
@@ -334,7 +335,7 @@ if __name__ == "__main__":
             make_plot = False
         
     if not "-dr" in args: driftrate = 36.0*3/(12*60.0)  # Default = 0.15 arcmin/s
-    if not mode in ["snr","glocal_max","profile_max","subint_fit"]: usage()
+    if not mode in ["snr","glocal_max","profile_max","subint_fit"]: mode = "snr"
 
     # if required args are not defined, usage()
 
