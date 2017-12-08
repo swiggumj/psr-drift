@@ -49,16 +49,16 @@ def read_gaussfit(gaussfitfile, proflen):
     fwhms = np.asarray(fwhms)
 
     def tfunc(x,*args):
-	#print type(args), len(args)
+    #print type(args), len(args)
         ncomps = len(args)/3
         phass = list(args[:ncomps])
         ampls = list(args[ncomps:2*ncomps])
         fwhms = list(args[2*ncomps:3*ncomps])
-	#const = args[-1]
+        #const = args[-1]
         #y=const
-	y=0
+        y=0
 
-	for ampl, phas, fwhm in zip(ampls, phass, fwhms):
+        for ampl, phas, fwhm in zip(ampls, phass, fwhms):
             sigma = fwhm / 2.35482
             mean = phas % 1.0
             y+= ampl*np.exp(-(x-mean)**2/(2*sigma**2))/(sigma*(2*np.pi)**0.5)
@@ -73,55 +73,6 @@ def read_gaussfit(gaussfitfile, proflen):
     for ii in range(len(ampls)):
         template += ampls[ii]*gaussian_profile(proflen, phass[ii], fwhms[ii])
     return template
-
-# JKS: IS ANY OF THE FOLLOWING CODE STILL NECESSARY??
-"""
-def template_func(gaussfitfile):
-	phass = []
-	ampls = []
-	fwhms = []
-	for line in open(gaussfitfile):
-		if line.lstrip().startswith("phas"):
-			phass.append(float(line.split()[2]))
-		if line.lstrip().startswith("ampl"):
-			ampls.append(float(line.split()[2]))
-		if line.lstrip().startswith("fwhm"):
-			fwhms.append(float(line.split()[2]))
-	if not (len(phass) == len(ampls) == len(fwhms)):
-		print "Number of phases, amplitudes, and FWHMs are not the same in '%s'!"%gaussfitfile
-		return 0.0
-	#phass = np.asarray(phass)
-	#ampls = np.asarray(ampls)
-	#fwhms = np.asarray(fwhms)
-	template = np.zeros(proflen, dtype='d')
-	ncomps = len(ampls)
-	def tfunc(x,*args):
-		ncomps = len(args[0])/3
-		phass = list(args[0][:ncomps])
-		ampls = list(args[0][ncomps:2*ncomps])
-		fwhms = list(args[0][2*ncomps:3*ncomps])
-		y=0
-		for ampl, phas, fwhm in zip(ampls, phass, fwhms):
-			sigma = fwhm / 2.35482
-			mean = phas % 1.0
-			y+= ampl*np.exp(-(x-mean)**2/(2*sigma**2))
-		
-		return y
-	
-	prof_params = phass+ampls+fwhms
-	global template_function
-	template_function = lambda x: tfunc(x, *prof_params)
-	
-	def scaled_template(x,c):
-		
-		
-	funcs = []
-	for ii in range(len(ampls)):
-		lambda x, a, m, s: gauss(x,a,m,s)
-		funcs.append(lambda x, a, m, s: gauss(x,a,m,s))
-	
-	return template
-"""
 
 
 def scale_template(x,a):
@@ -140,7 +91,9 @@ class bpo:
         self.drift_rate = None
  
     def fit_bp(self):
-        popt,pcov = curve_fit(gaussian_beam,self.offs,self.bp,p0=[1.0,0.0])
+        amp_guess = np.max(self.bp)-np.min(self.bp)
+	loc_guess = self.offs[np.argmax(self.bp)]
+        popt,pcov = curve_fit(gaussian_beam,self.offs,self.bp,p0=[amp_guess,loc_guess])
         fit_data = gaussian_beam(self.offs,*popt)
         residuals = self.bp-fit_data
     
@@ -165,6 +118,7 @@ class bpo:
 
     # Probably want a general plotter to do RA/DEC + composite.
     # JKS: IS THIS STILL USEFUL/NECESSARY?
+    # Pete: Yeah!
     def plot_fit(self):
         plt.plot(self.offs,self.bp)
         plt.plot(self.offs,gaussian_beam(self.offs,self.amp,self.off),c='red',ls='--',lw=2)
@@ -198,79 +152,71 @@ def get_snrs(profs,model_fname, mode = "snr"):
     nsub    = profs.shape[0]
     nchan   = 1
     nbin    = profs.shape[-1]
-	
+    
     if mode == "snr":
         on_inds, off_inds = on_off(model_fname,nbin,test=0)
         #print ""
         #print ""
         #print "ON-PULSE BINS:"
         #print on_inds
-        #profs = pf.combine_profs(nsub,nchan)		 # [isub:ichan:ibin]
+        #profs = pf.combine_profs(nsub,nchan)         # [isub:ichan:ibin]
         snrs = []
-        sub_test = []
         for isub in xrange(nsub):
             for ichan in xrange(nchan):
-                profile	= profs[isub,ichan] 
-                mean_off = np.mean(profile[off_inds])
-                std_off	= np.std(profile[off_inds])
-                snr = np.sum(profile-mean_off)/std_off	 # lk+05 (no arbitrary width term)
-                snrs.append(snr)
+                profile    = profs[isub,ichan]
+                if np.sum(profile):
+                    mean_off = np.mean(profile[off_inds])
+                    std_off    = np.std(profile[off_inds])
+                    snr = np.sum(profile-mean_off)/std_off     # lk+05 (no arbitrary width term)
+                    snrs.append(snr)
+                else:
+                    snrs.append(0)
                 #print isub, mean_off, snr
 
-                snrs =	np.array(snrs)
+        snrs =    np.array(snrs)
         return snrs
-		
+        
     elif mode == "global_max":
-
         on_inds, off_inds = on_off(model_fname,nbin,test=0)
         profs = profs.squeeze()
         for i in range(nsub):
             profile = profs[i,:]
             prof_baseline = np.average(profile[off_inds])
             profs[i,:] -= prof_baseline
-				
+                
         snrs = profs.max(axis=1)
         mins = profs.min(axis=1)
         return snrs
-	
+    
     elif mode == "profile_max":
-
         on_inds, off_inds = on_off(model_fname,nbin,test=0)
         profs = profs.squeeze()
-
         for i in range(nsub):
             profile = profs[i,:]
             prof_baseline = np.average(profile[off_inds])
             profs[i,:] -= prof_baseline
-
-        snrs = profs[:,on_inds].squeeze().max(axis=1)
-        """
-        print on_inds
-        for i in range(nsub):
-            plt.plot(profs[i,:])
-            plt.plot(list(on_inds[0]),[snrs[i]]*len(on_inds[0]))
-            plt.show()		
-        exit(0)
-        """
+                
+        snrs = profs.max(axis=1)
+        mins = profs.min(axis=1)
         return snrs
-	
+    
     elif mode == "subint_fit":
 
         on_inds, off_inds = on_off(model_fname,nbin,test=0)
         profs = profs.squeeze()
         snrs = []
         phases = np.linspace(0,1-1.0/nbin,nbin)
-
         for i in range(nsub):
-
-            #if i>15:
             profile = profs[i,:]
-            prof_baseline = np.average(profile[off_inds])
-            profile-=prof_baseline
-            a_guess = max(profile)-min(profile)
-            popt, pcov = curve_fit(scale_template, phases, profile, p0=[a_guess])
-            snrs.append(popt[0])
-			
+            if np.sum(profile):
+                prof_baseline = np.average(profile[off_inds])
+                profile-=prof_baseline
+                a_guess = max(profile)-min(profile)
+                popt, pcov = curve_fit(scale_template, phases, profile, p0=[a_guess])
+                snrs.append(popt[0])
+            else:
+                snrs.append(0)            
+
         return snrs
 
 
@@ -299,9 +245,6 @@ def get_bpo(pfd_fname,model_fname,dr=0.666,mode="snr",nsubints=None):
     else: newsubints = nsub
   
     profs = pf.combine_profs(newsubints,nchan)
-
-    print pf.mid_secs[0],pf.mid_secs[-1]
-    exit(0)
 
     # Calculate position offsets. First method doesn't work well. Why?
     mid_time = (pf.mid_secs[0]+pf.mid_secs[-1])/2.0
@@ -350,11 +293,17 @@ def usage():
     print "          -nsub [# subints]"
     print "           -pfd [pfd filename]"
     print "        -noplot ...to turn off plotting."
+    print "\nAvailable modes:"
+    print "            snr Beam profiles is formed from the signal-to-noise ratio in each subint"
+    print "     global_max Beam profiles is formed from the maximum intensity in each subint"
+    print "    profile_max Beam profiles is formed from the maximum on-pulse intensity in each subint"
+    print "            snr Beam profiles is formed from the best fit amplitude of the template profile in each subint"
     exit(0)
 
 if __name__ == "__main__":
 
     nsub=None
+    mode = None
     make_plot = True
     args = argv[1:]
 
@@ -366,7 +315,7 @@ if __name__ == "__main__":
             usage()
 
         elif arg == "-dr":
-            driftrate = args[i+1]
+            driftrate = float(args[i+1])
 
         # probably should just remove this and make it the last argument
         elif arg == "-pfd":
@@ -386,6 +335,7 @@ if __name__ == "__main__":
             make_plot = False
         
     if not "-dr" in args: driftrate = 36.0*3/(12*60.0)  # Default = 0.15 arcmin/s
+    if not mode in ["snr","glocal_max","profile_max","subint_fit"]: mode = "snr"
 
     # if required args are not defined, usage()
 
