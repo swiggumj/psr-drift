@@ -346,9 +346,9 @@ def usage():
     print "Usage: python localize.py"
     print "            -dr [drift rate (arcmin/s)]"
     print "             -t [template filename]"
-    print "             -m [mode (??)]"
+    print "             -m [mode] (snr, global_max, profile_max, subint_fit)"
     print "          -nsub [# subints]"
-    print "           -pfd [filename]"
+    print "           -pfd [pfd filename]"
     print "        -noplot ...to turn off plotting."
     exit(0)
 
