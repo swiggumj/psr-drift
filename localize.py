@@ -253,26 +253,6 @@ def get_bpo(pfd_fname,model_fname,dr=0.666,mode="snr",nsubints=None):
 
     #pdata = pf.combine_profs(1,1).flatten()
     on_inds, off_inds = on_off(model_fname,nbin,test=0)
-
-    """
-    print ""
-    print "ON-PULSE BINS:"
-    print on_inds
-    profs = pf.combine_profs(nsub,nchan)     # [isub:ichan:ibin]
-    snrs = []
-    sub_test = []
-    for isub in xrange(nsub):
-        for ichan in xrange(nchan):
-            profile  = profs[isub,ichan] 
-            mean_off = np.mean(profile[off_inds])
-            std_off  = np.std(profile[off_inds])
-            snr = np.sum(profile-mean_off)/std_off   # lk+05 (no arbitrary width term)
-            snrs.append(snr)
-            #print isub, mean_off, snr
-
-    snrs = np.array(snrs)
-    """
-
     snrs=get_snrs(profs,model_fname,mode)
 
     # Get BPO ready to return...
