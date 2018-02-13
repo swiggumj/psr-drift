@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit, minimize
 from psr_utils import gaussian_profile
 from sys import argv
+from optparse import OptionParser,OptionGroup
 
 #From gaussian_beam
 def gaussian_beam(rr,amp,offset,fwhm=36.0,obsfreq=350.0):
@@ -282,42 +283,102 @@ def usage():
 
 if __name__ == "__main__":
 
-    nsub=None
-    mode = None
-    make_plot = True
-    args = argv[1:]
+    usage="Usage: %prog [options] pfd file\n"
+    usage+="(Does some stuff!)\n"
 
-    if len(args) == 0: usage()
+    parser = OptionParser(usage=usage)
+    parser.add_option('-d','--dr',default=36.0*4/(12*60.0),
+                      help='Drift rate (arcmin/s)')
+    parser.add_option('-t','--template',default=None,
+                      help='Template filename')
+    parser.add_option('-m','--mode',default='snr',
+                      help='Mode (snr, global_max, profile_max, subint_fit)')
+    parser.add_option('-n','--nsub',default=30,
+                      help='# subints')
+    parser.add_option('-p','--plot',default=False,
+                      help='Turn off plotting')
 
-    for i,arg in enumerate(args):
+    (options, args) = parser.parse_args()
 
-        if arg == "-h":
-            usage()
 
-        elif arg == "-dr":
-            driftrate = float(args[i+1])
+    #nsub=None
+    #mode = None
+    #make_plot = True
+    #args = argv[1:]
+
+    #if len(args) == 0: usage()
+
+    #for i,arg in enumerate(args):
+
+    #    if arg == "-h":
+    #        usage()
+
+    #    elif arg == "-dr":
+    #        driftrate = float(args[i+1])
 
         # probably should just remove this and make it the last argument
-        elif arg == "-pfd":
-            pfd_fname = args[i+1]
+    #    elif arg == "-pfd":
+    #        pfd_fname = args[i+1]
 
-        elif arg in ["-template", "-t"]:
-            template_fname = args[i+1]
+    #    elif arg in ["-template", "-t"]:
+    #        template_fname = args[i+1]
 
-        elif arg in ["-mode","-m"]:
-            mode = args[i+1]
+    #    elif arg in ["-mode","-m"]:
+    #        mode = args[i+1]
 
         # does this default to # existing after prepfold?
-        elif arg == "-nsub":
-            nsub = int(args[i+1])
+    #    elif arg == "-nsub":
+    #        nsub = int(args[i+1])
 
-        elif arg == "-noplot":
-            make_plot = False
+    #    elif arg == "-noplot":
+    #        make_plot = False
         
-    if not "-dr" in args: driftrate = 36.0*3/(12*60.0)  # Default = 0.15 arcmin/s
-    if not mode in ["snr","glocal_max","profile_max","subint_fit"]: mode = "snr"
+    #if not "-dr" in args: driftrate = 36.0*3/(12*60.0)  # Default = 0.15 arcmin/s
+    #if not mode in ["snr","glocal_max","profile_max","subint_fit"]: mode = "snr"
 
     # if required args are not defined, usage()
+
+    # Set drift rate & print
+    if options.dr is not None:
+        try:
+            driftrate = float(options.dr)
+        except:
+            raise ValueError, 'Cannot parse drift rate.'
+        print "Using dr = %s\n" % (driftrate)
+
+    # Check template
+    if options.template is not None:
+        try:
+            template_fname = str(options.template)
+        except:
+            raise ValueError, 'Template filename must be a valid string.'
+    else:
+        raise ValueError, 'Must supply template filename.'
+
+    # Set mode & print
+    if options.mode is not None:
+        try:
+            mode = str(options.mode)
+        except:
+            raise ValueError, 'Available modes: snr, global_max, profile_max, subint_fit'
+        print "Using mode: %s\n" % (mode)
+
+    # Parse nsubint (is this needed??)
+    nsub = float(options.nsub)
+
+    # Plot?
+    if not options.plot:
+        make_plot = True
+    else:
+        make_plot = False
+
+    # Get pfd_fname from args
+    if len(args) == 1:
+        pfd_fname = str(args[0])
+    elif len(args) == 0:
+        raise ValueError, 'Please supply a .pfd file.'
+    elif len(args) > 1:
+        raise ValueError, 'Pleas supply only one .pfd file.'
 
     x = get_bpo(pfd_fname, template_fname, dr=driftrate, mode=mode, nsubints=nsub)
     x.fit_bp()
