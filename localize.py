@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit, minimize
 from psr_utils import gaussian_profile
 from sys import argv
+from astropy.coordinates import SkyCoord
+from astropy import units as u
 
 #From gaussian_beam
 def gaussian_beam(rr,amp,offset,fwhm=36.0,obsfreq=350.0):
@@ -224,7 +226,7 @@ def get_bpo(pfd_fname,model_fname,dr=0.666,mode="snr",nsubints=None):
 
     pf = prepfold.pfd(pfd_fname)
     pf.dedisperse()
-
+    start_coords = SkyCoord(pf.rastr, pf.decstr, frame="icrs", unit = (u.hourangle, u.deg))
     # BEST WAY TO DO THIS?? 
     nsub    = pf.npart
     nchan   = 1
@@ -240,7 +242,9 @@ def get_bpo(pfd_fname,model_fname,dr=0.666,mode="snr",nsubints=None):
         profs = pf.combine_profs(newsubints,nchan)
 
     elif nsub<nsubints:
+	newsubints = nsub
         print "Cannot scrunch to %d subints since original file has %d subints." % (nsubints,nsub)
+	print "Using %d subints.\n" % (newsubints)
 
     else: newsubints = nsub
   
@@ -289,7 +293,7 @@ def usage():
     print "Usage: python localize.py"
     print "            -dr [drift rate (arcmin/s)]"
     print "             -t [template filename]"
-    print "             -m [mode (??)]"
+    print "             -m [mode (see below)]"
     print "          -nsub [# subints]"
     print "           -pfd [filename]"
     print "        -noplot ...to turn off plotting."
@@ -327,7 +331,7 @@ if __name__ == "__main__":
         elif arg in ["-mode","-m"]:
             mode = args[i+1]
 
-        # does this default to # existing after prepfold?
+        # Defaults to # existing after prepfold.
         elif arg == "-nsub":
             nsub = int(args[i+1])
 
@@ -341,5 +345,5 @@ if __name__ == "__main__":
 
     x = get_bpo(pfd_fname, template_fname, dr=driftrate, mode=mode, nsubints=nsub)
     x.fit_bp()
-
+    
     if make_plot: x.plot_fit()
