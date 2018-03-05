@@ -1,12 +1,13 @@
-#!/opt/pulsar/python/2.7.12/bin/python
+#!/usr/bin/env python
+
 import prepfold
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit, minimize
 from psr_utils import gaussian_profile
-from sys import argv
-from astropy.coordinates import SkyCoord
-from astropy import units as u
+import argparse
+
+## #!/opt/pulsar/python/2.7.12/bin/python
 
 #From gaussian_beam
 def gaussian_beam(rr,amp,offset,fwhm=36.0,obsfreq=350.0):
@@ -226,7 +227,7 @@ def get_bpo(pfd_fname,model_fname,dr=0.666,mode="snr",nsubints=None):
 
     pf = prepfold.pfd(pfd_fname)
     pf.dedisperse()
-    start_coords = SkyCoord(pf.rastr, pf.decstr, frame="icrs", unit = (u.hourangle, u.deg))
+
     # BEST WAY TO DO THIS?? 
     nsub    = pf.npart
     nchan   = 1
@@ -242,9 +243,7 @@ def get_bpo(pfd_fname,model_fname,dr=0.666,mode="snr",nsubints=None):
         profs = pf.combine_profs(newsubints,nchan)
 
     elif nsub<nsubints:
-	newsubints = nsub
         print "Cannot scrunch to %d subints since original file has %d subints." % (nsubints,nsub)
-	print "Using %d subints.\n" % (newsubints)
 
     else: newsubints = nsub
   
@@ -257,26 +256,6 @@ def get_bpo(pfd_fname,model_fname,dr=0.666,mode="snr",nsubints=None):
 
     #pdata = pf.combine_profs(1,1).flatten()
     on_inds, off_inds = on_off(model_fname,nbin,test=0)
-
-    """
-    print ""
-    print "ON-PULSE BINS:"
-    print on_inds
-    profs = pf.combine_profs(nsub,nchan)     # [isub:ichan:ibin]
-    snrs = []
-    sub_test = []
-    for isub in xrange(nsub):
-        for ichan in xrange(nchan):
-            profile  = profs[isub,ichan] 
-            mean_off = np.mean(profile[off_inds])
-            std_off  = np.std(profile[off_inds])
-            snr = np.sum(profile-mean_off)/std_off   # lk+05 (no arbitrary width term)
-            snrs.append(snr)
-            #print isub, mean_off, snr
-
-    snrs = np.array(snrs)
-    """
-
     snrs=get_snrs(profs,model_fname,mode)
 
     # Get BPO ready to return...
@@ -289,61 +268,67 @@ def get_bpo(pfd_fname,model_fname,dr=0.666,mode="snr",nsubints=None):
 def prof_test(model_fname,nbin,threshold=0.05):
     on_off(model_fname,nbin,threshold=threshold,test=1)
 
-def usage():
-    print "Usage: python localize.py"
-    print "            -dr [drift rate (arcmin/s)]"
-    print "             -t [template filename]"
-    print "             -m [mode (see below)]"
-    print "          -nsub [# subints]"
-    print "           -pfd [filename]"
-    print "        -noplot ...to turn off plotting."
-    print "\nAvailable modes:"
-    print "            snr Beam profiles is formed from the signal-to-noise ratio in each subint"
-    print "     global_max Beam profiles is formed from the maximum intensity in each subint"
-    print "    profile_max Beam profiles is formed from the maximum on-pulse intensity in each subint"
-    print "            snr Beam profiles is formed from the best fit amplitude of the template profile in each subint"
-    exit(0)
+#    print "\nAvailable modes:"
+#    print "            snr Beam profiles is formed from the signal-to-noise ratio in each subint"
+#    print "     global_max Beam profiles is formed from the maximum intensity in each subint"
+#    print "    profile_max Beam profiles is formed from the maximum on-pulse intensity in each subint"
+#    print "            snr Beam profiles is formed from the best fit amplitude of the template profile in each subint"
 
 if __name__ == "__main__":
 
-    nsub=None
-    mode = None
-    make_plot = True
-    args = argv[1:]
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-d','--dr',default=36.0*4/(12*60.0),
+                      help='Drift rate (arcmin/s)')
+    parser.add_argument('-t','--template',required=True,
+                      help='Template filename')
+    parser.add_argument('-m','--mode',default='snr',
+                      help='Mode (snr, global_max, profile_max, subint_fit)')
+    parser.add_argument('-n','--nsub',default=30,
+                      help='# subints')
+    parser.add_argument('--noplot', action='store_true',
+                      help='Turn off plotting')
+    parser.add_argument('pfd_file')
 
-    if len(args) == 0: usage()
+    args = parser.parse_args()
 
-    for i,arg in enumerate(args):
+    # Set drift rate & print
+    if args.dr is not None:
+        try:
+            driftrate = float(args.dr)
+        except:
+            raise ValueError, 'Cannot parse drift rate.'
+        print "Using dr = %s\n" % (driftrate)
 
-        if arg == "-h":
-            usage()
+    # Check template
+    if args.template is not None:
+        try:
+            template_fname = str(args.template)
+        except:
+            raise ValueError, 'Template filename must be a valid string.'
+    else:
+        raise ValueError, 'Must supply template filename.'
 
-        elif arg == "-dr":
-            driftrate = float(args[i+1])
+    # Set mode & print
+    if args.mode is not None:
+        try:
+            mode = str(args.mode)
+        except:
+            raise ValueError, 'Available modes: snr, global_max, profile_max, subint_fit'
+        print "Using mode: %s\n" % (mode)
 
-        # probably should just remove this and make it the last argument
-        elif arg == "-pfd":
-            pfd_fname = args[i+1]
+    # Parse nsubint (is this needed??)
+    nsub = float(args.nsub)
 
-        elif arg in ["-template", "-t"]:
-            template_fname = args[i+1]
+    # Plot?
+    if args.noplot:
+        make_plot = False
+    else:
+        make_plot = True
 
-        elif arg in ["-mode","-m"]:
-            mode = args[i+1]
-
-        # Defaults to # existing after prepfold.
-        elif arg == "-nsub":
-            nsub = int(args[i+1])
-
-        elif arg == "-noplot":
-            make_plot = False
-        
-    if not "-dr" in args: driftrate = 36.0*3/(12*60.0)  # Default = 0.15 arcmin/s
-    if not mode in ["snr","glocal_max","profile_max","subint_fit"]: mode = "snr"
-
-    # if required args are not defined, usage()
+    # Get pfd_fname from args
+    pfd_fname = args.pfd_file 
 
     x = get_bpo(pfd_fname, template_fname, dr=driftrate, mode=mode, nsubints=nsub)
     x.fit_bp()
-    
+
     if make_plot: x.plot_fit()
