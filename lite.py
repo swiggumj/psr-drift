@@ -129,7 +129,7 @@ def amps_errs(profs,temp_fname):
     for i,p in enumerate(profs):
         off_pulse_ints = p[off_inds]
         off_mean, off_std = np.mean(off_pulse_ints), np.std(off_pulse_ints)
-        print off_mean,off_std,max(p)
+        #print off_mean,off_std,max(p)
         p -= off_mean
         #bg_subtract.append(off_mean)
         #std_div.append(off_std)
@@ -164,7 +164,9 @@ def amps_errs(profs,temp_fname):
 def fit_1d_bp(offs,amps,errs):
     amp_guess = np.max(amps)-np.min(amps)
     loc_guess = offs[np.argmax(amps)]
-    popt,pcov = curve_fit(gaussian_beam,offs,amps,p0=[amp_guess,loc_guess]) #,sigma=errs,absolute_sigma=True)
+    errs = np.asarray(errs)
+    amps = np.asarray(amps)
+    popt,pcov = curve_fit(gaussian_beam,offs[amps>0],amps[amps>0],p0=[amp_guess,loc_guess],sigma=errs[amps>0],absolute_sigma=True)
     perr = np.sqrt(np.diag(pcov))
     return popt, perr 
 
@@ -205,13 +207,19 @@ def get_bp(scan_fname,temp_fname,direction,dr=0.1333):
     bp_vals, bp_errs = fit_1d_bp(offs,ii,ee)
     #plt.errorbar(offs,ii,yerr=ee,fmt='o',capsize=3)
     #plt.plot(offs,gaussian_beam(offs,bp_vals[0],bp_vals[1]),'--r')
-    print bp_vals,bp_errs
+    #print bp_vals,bp_errs
     resids = ii-gaussian_beam(offs,bp_vals[0],bp_vals[1])
     R_std = np.std(resids)
-
+    
+    #print "Offset    Err:"
+    #for oset, err, amp in zip(offs,ee,ii): print oset,err, amp
+    
+    plt.figure(0)
     plt.errorbar(offs,ii/R_std,yerr=ee/R_std,fmt='o',capsize=3)
     plt.plot(offs,gaussian_beam(offs,bp_vals[0],bp_vals[1])/R_std,'--r')
-
+    plt.figure(1)
+    plt.errorbar(offs,resids, yerr=ee/R_std,fmt='o',capsize=3)
+    plt.plot(offs,[0]*len(offs),'--r')
     plt.show()
 
 
