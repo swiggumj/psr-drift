@@ -158,7 +158,7 @@ def amps_errs(profs,temp_fname):
     # WEIRD STUFF (background subtraction)
     #plt.plot(bg_subtract/max(bg_subtract),':b',std_div/max(std_div),'--r')
     #plt.show()
-    return amps,errs
+    return np.asarray(amps), np.asarray(errs)
 
 # NEED TO INCORPORATE ERRORS!!!
 def fit_1d_bp(offs,amps,errs):
@@ -190,6 +190,7 @@ def get_bp(scan_fname,temp_fname,direction,dr=0.1333):
     # Is this necessary? Uses the template to determine, given some threshold.
     #on_inds, off_inds = on_off(model_fname,nbin,test=0)
     ii,ee = amps_errs(profs,temp_fname)
+    
 
     # ***  Probably need a cos(dec) correction for offsets_arcmin...!  ***
     # 1=Dec, 0=RA
@@ -207,9 +208,9 @@ def get_bp(scan_fname,temp_fname,direction,dr=0.1333):
     bp_vals, bp_errs = fit_1d_bp(offs,ii,ee)
     #plt.errorbar(offs,ii,yerr=ee,fmt='o',capsize=3)
     #plt.plot(offs,gaussian_beam(offs,bp_vals[0],bp_vals[1]),'--r')
-    #print bp_vals,bp_errs
+    print bp_vals,bp_errs
     resids = ii-gaussian_beam(offs,bp_vals[0],bp_vals[1])
-    R_std = np.std(resids)
+    R_std = np.std(resids[ii>0])
     
     #print "Offset    Err:"
     #for oset, err, amp in zip(offs,ee,ii): print oset,err, amp
