@@ -1,4 +1,13 @@
+Name              = B1919+21
+Arc (deg)         = 2.0    
 Drift Rate ('/s)  = 0.6667
+Order             = 6 
+Threshold         = 0.001
+Right Ascension   = 19:21:44.815
+Declination       = +21:53:02.25
 Scan 1            = PSR_1921+2153_RA-dr_0.666.pfd 
 Template 1        = PSR_1921+2153_RA.gaussians 
 Direction 1       = 0
+Scan 2            = PSR_1921+2153_Dec-dr_0.666.pfd
+Template 2        = PSR_1921+2153_Dec.gaussians
+Direction 2       = 1

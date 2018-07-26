@@ -20,7 +20,7 @@ Before you can use psr-drift, make sure you have access to:
 ```
 PRESTO
 scipy
-???
+astropy
 ```
 
 ### Get psr-drift
