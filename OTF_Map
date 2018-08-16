@@ -1,0 +1,64 @@
+
+cat_file = "OTF.cat"  # (Provide full path)
+SL          = 15.*60  # Scan length in sec
+FWHM   = 36.0/60.0        # Full width half max in deg
+PSR       = "B1919+21"
+followup_psrs = Catalog(cat_file)
+
+config_g="""
+# usually 'Rcvr_342', 'Rcvr_800', 'Rcvr1_2', 'Rcvr2_3', 'Rcvr4_6'
+receiver = 'Rcvr_342'
+restfreq = 350.0, 350.0   # in MHz.  Must have 2 identical freqs
+obstype = 'Pulsar'
+backend = 'GUPPI'
+pol = 'Linear'    # C-band and below are native 'Linear'
+ifbw = 80          # 0 for >100MHz BW modes, 80 for 100MHz.
+bandwidth = 100   # in MHz. (100, 200, and 800 currently)
+#tint  = 163.84e-6     # sample time in seconds (very flexible)
+tint = 81.92e-6
+swmode = 'tp_nocal'     # 'tp' for cals, 'tp_nocal' for no cals
+noisecal = 'off'   # if no cals, set to 'off'
+# The following are boilerplate until 'guppi' section
+# You should probably not change them...
+swtype = 'none'
+swper = 0.04
+swfreq = 0.0, 0.0
+nwin = 1
+deltafreq = 0,0
+vlow = 0
+vhigh = 0
+g.vframe = 'topo'
+vdef = 'Radio'
+# -- GUPPI specific params -- #
+# obsmode can be 'search', 'fold', or 'cal'
+guppi.obsmode = 'search'
+# numchan can be a power-of-two between 64 to 4096
+guppi.numchan = 4096
+# polnmode is 'full_stokes' or 'total_intensity'
+guppi.polnmode = 'total_intensity'
+# scale should be set in first config block and
+# tweaked while taking data and viewing with guppi_monitor
+guppi.scale = 0.3         # 0.8
+guppi.outbits = 8         # Currently only 8 is available
+# Top level disk where data will be written
+guppi.datadisk = 'data2'  # 'data1' or 'data2'
+"""
+Configure(config_g)
+Balance()
+#Break("Check ADC Hist")
+
+Slew(PSR)
+Balance()
+RALongMap(PSR,
+                        Offset("J2000",4*FWHM,0.0,cosv=True),    # hLength
+                        Offset("J2000",0.0,0.0,cosv=True),             # vLength
+                        Offset("J2000",FWHM,FWHM,cosv=True), # vDelta
+                        scanDuration=SL)
+#
+Slew(PSR)
+Balance()
+DecLatMap(PSR,
+                       Offset("J2000",0.0,0.0,cosv=True),             # hLength
+                       Offset("J2000",0.0,4*FWHM,cosv=True),   # vLength
+                       Offset("J2000",FWHM,FWHM,cosv=True), # hDelta
+                       scanDuration=SL)

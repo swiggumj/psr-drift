@@ -35,4 +35,10 @@ and to update it on a regular basis, `git pull` from your psr-drift directory.
 
 ### Testing & Usage
 
-More soon...
+Once installed, you should be able to run:
+
+```
+python localize.py test.loc
+```
+
+to calculate the test scan offset from the catalog position. Use `test.loc` as a template for your own localization files to measure offsets from discovery parameters. We have also included sample catalog (`OTF.cat`) and scheduling block (`OTF_Map`) files to easily implement thi on-the-fly mapping technique with the Green Bank Telescope.

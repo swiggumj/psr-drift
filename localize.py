@@ -1,10 +1,6 @@
 #!/usr/bin/env python
-#from datetime import datetime
-#print 0,datetime.now()
 
 from prepfold import pfd
-#print 0.1,datetime.now()
-
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit, minimize, fmin
@@ -14,13 +10,10 @@ import argparse
 import os
 import matplotlib.gridspec as gridspec
 import itertools as it
-#print 0.2,datetime.now()
 
 from astropy.coordinates import SkyCoord,ICRS,Angle,Latitude,Longitude
 import astropy.units as u
 
-#print 1,datetime.now()
-#exit()
 
 def dlon_dlat(coord1,coord2):
     sep = coord1.separation(coord2).arcmin
@@ -126,13 +119,14 @@ def coord_string(c_str,c_type='hms'):
         print "coord_string s_type=%s not recognized" % (s_type)
         exit()
 
-# NEED TO INCORPORATE ERRORS!!!
+
 def fit_1d_bp(offs,amps,errs):
     amp_guess = np.max(amps)-np.min(amps)
     loc_guess = offs[np.argmax(amps)]
     popt,pcov = curve_fit(gaussian_beam,offs,amps,p0=[amp_guess,loc_guess],sigma=errs,absolute_sigma=True)
     perr = np.sqrt(np.diag(pcov))
     return popt, perr 
+
 
 class scan:
 
@@ -193,7 +187,6 @@ class scan:
 
         #"""
         # Bootstrap?
-        #print '...start bootstrap...',datetime.now()
         self.avals = []    # Amplitude values
         self.ovals = []    # Offset values
         self.n_bootstrap_trials = 10000
@@ -201,10 +194,9 @@ class scan:
         # For RFI/nulling test, remove N points from consideration:
         #n_removed = 10 
         #pass_inds = np.random.randint(0,high=self.nsub,size=self.nsub-n_removed)
+
         for k in range(self.n_bootstrap_trials):
-            # boot_inds = np.random.randint(0,high=self.nsub-n_removed,size=self.nsub-n_removed)
             boot_inds = np.random.randint(0,high=self.nsub,size=self.nsub)
-            # bp_vals, bp_errs = fit_1d_bp(self.offs[pass_inds[boot_inds]],self.ii[pass_inds[boot_inds]],self.ee[pass_inds[boot_inds]])
             bp_vals, bp_errs = fit_1d_bp(self.offs[boot_inds],self.ii[boot_inds],self.ee[boot_inds])
             self.avals.append(bp_vals[0])
             self.ovals.append(bp_vals[1])
@@ -247,7 +239,6 @@ class scan:
         dir_strings = ['R.A.','Dec.']
         return dir_strings[self.direction]
 
-    # Does this take into account good/bad subints? Shouldn't be necessary if initial error estimates are good.
     def scale_errors(self):
         bp_vals, bp_errs = fit_1d_bp(self.offs,self.ii,self.ee)
         chisq = np.sum((self.ii-gaussian_beam(self.offs,bp_vals[0],bp_vals[1]))**2/self.ee**2)
@@ -263,7 +254,6 @@ class scan:
 
     def clean_profs(self,profs):
 
-        #new_profs = profs/np.std(profs[:,self.off])    # Divide by global noise stddev
         new_profs = profs
 
         # Fit order N polynomials to off-pulse bins of each subint.
@@ -306,9 +296,7 @@ class scan:
 
     def amps_errs(self,profs):
         # Based on simulations, amplitude errors should be proportional to std(off)/sqrt(N_on)
-        # I use rms of subtracted polynomials to preserve information from cleaning step. Seems to work well.
         self.ii = np.zeros(self.nsub) 
-        #self.ee = np.std(self.prof_rms[:,self.off],axis=1)/np.sqrt(len(self.on))
         self.ee = np.std(profs[:,self.off],axis=1)/np.sqrt(len(self.on))
 
         # Get amplitudes by fitting profile template to individual subints.
@@ -324,7 +312,6 @@ class scan:
         t1 = mederr+2.0*iqrerr
         t2 = mederr-2.0*iqrerr
         for j in range(self.nsub):
-            #if (logerrs[j] > t1) or (logerrs[j] < t2):
             if logerrs[j] < t2:
                 self.ee[j] = 999.0
 
@@ -391,16 +378,14 @@ class loc_info:
         self.yy = np.empty(0)
         self.ii = np.empty(0)
         self.ee = np.empty(0)
-        #print self.input_ra, self.input_dec
 
         self.scans = []
         best_position = ['aa','dd']
         self.pos_errors = [999.0,999.0]
+
         # Now it's time to get relevant offset/intensity info.
         for ss,tt,dd in zip(self.scan_files, self.temp_files, self.directions):
             s_obj = scan(ss,tt,dd,self.driftrate,self.thresh,self.order)
-            #self.xx = np.append(self.xx,s_obj.xx)
-            #self.yy = np.append(self.yy,s_obj.yy)
             self.ii = np.append(self.ii,s_obj.ii)
             self.ee = np.append(self.ee,s_obj.ee)
             best_position[dd] = s_obj.best
@@ -415,11 +400,9 @@ class loc_info:
         constant_xscan_offset = self.y_start_position.separation(self.center_position).arcmin
         constant_yscan_offset = self.x_start_position.separation(self.center_position).arcmin
         self.constant_scan_offsets = [constant_xscan_offset,constant_yscan_offset]
-        #print self.constant_scan_offsets
 
         for ss in self.scans:
 
-            #ss.directional_position_stuff(self.center_position,self.arc*u.deg)
             if not ss.direction:
                 self.xx = np.append(self.xx,ss.xx)
                 self.yy = np.append(self.yy,ss.yy+constant_yscan_offset)
@@ -429,10 +412,8 @@ class loc_info:
 
             self.scan_results(ss)
 
-        #print 2,datetime.now()
         self.recovered_skycoord = SkyCoord(best_position[0],best_position[1],frame=ICRS,unit=(u.hourangle,u.deg),obstime="J2015.0")
 
-        #self.scan_diagnostics()
         self.fit_2d_beam()
         self.text_out()
 
@@ -461,16 +442,13 @@ class loc_info:
         ll_ax = fig.add_subplot(gs[1:,0:3])
         ul_ax = fig.add_subplot(gs[0,0:3])
         lr_ax = fig.add_subplot(gs[1:,3:4])
-        #ur_ax = fig.add_subplot(gs[0,1])
 
         # LL
         dir_string = so.get_dir_string()
         xylims = (0.0,1.0,0.0,so.length) #so.rate*so.length)
-        #ll_ax.imshow(cleaned,cmap=plt.cm.BuPu_r,origin='lower',interpolation='None',aspect='auto',extent=xylims)
         ll_ax.imshow(cleaned,cmap=plt.cm.gray_r,origin='lower',interpolation='None',aspect='auto',extent=xylims)
         ll_ax.set_xlabel('Pulse Phase')
         ll_ax.set_ylabel('Integration Time (s)')
-        #plt.colorbar()
         
         # UL
         temp_prof = folded-min(folded)
@@ -500,75 +478,10 @@ class loc_info:
         lr_ax.yaxis.set_label_position('right')
 
         #lr_ax.legend(loc=1)
-
         #lr_ax.xaxis.set_label_position('top')
         #lr_ax.set_xlabel('Intensity (arbitrary units)')
 
-
-        # (UR reserved for text results)
-        """
-        ur_ax.axes.get_xaxis().set_visible(False)
-        ur_ax.axes.get_yaxis().set_visible(False)
-        ur_ax.patch.set_visible(False)
-        ur_ax.axis('off')
-
-        text_lines = [] 
-        text_lines.append('%s %s' % (self.input_ra,self.input_dec)) 
-        text_lines.append('')
-        text_lines.append('OTF Best %s: %s' % (dir_string,so.best))
-        text_lines.append('Uncertainty:     %.2f arcmin' % (so.bp_errs[1]))
-
-        if so.direction:
-            recovered_skycoord = so.get_recovered_skycoord(self.input_ra) 
-        else:
-            recovered_skycoord = so.get_recovered_skycoord(self.input_dec)
-
-        sep = (recovered_skycoord.separation(self.actual_skycoord)).to(u.arcmin).value 
-        text_lines.append('Separation:     %.2f arcmin' % (sep)) 
-        
-        for ii,line in enumerate(text_lines):
-            yval = 0.95-ii*0.15
-            ur_ax.text(0.95,yval,line,horizontalalignment='right',verticalalignment='center',transform=ur_ax.transAxes) 
-        """
-
         plt.savefig(out_base+'.pdf',format='pdf',bbox_inches='tight',dpi=300)
-
-
-    def scan_diagnostics(self):
-
-        # Use to close previous figures (comment out to see all diagnostics at once)
-        #for i in range(plt.gcf().number):
-        #    plt.clf()
-        #    plt.cla()
-        #    plt.close()
-
-        colors = it.cycle(['r','g','b'])
-        fig, (ax1,ax2,ax3,ax4) = plt.subplots(4, sharex=True)
-        axes = [ax1,ax2,ax3,ax4]
-
-        for ss in self.scans:
-
-            # Shift profile and fix on/off bins (won't work yet, need to fix external on/off in amps_errs function)
-            bin_shift = ss.nbin/2 - np.argmax(ss.folded_profile)
-            prof_stages = [ss.raw_profs,ss.sub_profs,ss.subtracted_polynomials,ss.cleaned_profs]
-            color = next(colors)
-
-            for pp,aa in zip(prof_stages,axes):
-                ps = np.roll(pp,bin_shift,axis=1)
-                bins = (ss.off+bin_shift)%ss.nbin
-                #print bins
-                #bins = bins[np.argsort(ss.phase(bins))] 
-
-                mean_vals = np.mean(ps,axis=0).squeeze()
-                stdd_vals = np.std(ps,axis=0).squeeze()
-                prof_maxima = np.max(ps,axis=0).squeeze()
-                prof_minima = np.min(ps,axis=0).squeeze()
-                aa.errorbar(ss.phase[bins],mean_vals[bins],yerr=stdd_vals[bins],fmt='o',capsize=3,color=color)
-                aa.scatter(ss.phase[bins],prof_maxima[bins],marker='_',s=25,color=color)
-                aa.scatter(ss.phase[bins],prof_minima[bins],marker='_',s=25,color=color)
-                aa.set_xlim([0.0,1.0])
-
-        plt.show()
 
 
     def text_out(self):
@@ -638,9 +551,6 @@ class loc_info:
 
     def fit_2d_beam(self):
         amplitude_guess = np.max(self.ii)
-        #bp2d_popt, bp2d_pcov = curve_fit(gaussian_beam_2d,(self.xx,self.yy),self.ii,p0=[amplitude_guess,60.0,60.0],sigma=self.ee,absolute_sigma=True)
-        #self.ress = bp2d_popt
-        #self.errs = np.sqrt(np.diag(bp2d_pcov))
 
         # Bootstrap...
         a_vals = []    # Amplitude values
@@ -668,4 +578,3 @@ if __name__ == "__main__":
     parser.add_argument('loc_file')
     args = parser.parse_args()
     x = loc_info(args.loc_file) 
-    #x.plot_scan_subints(0)
